@@ -1,0 +1,17 @@
+version: "1.2.9"
+specification_path: "./specifications/swordfish.json"
+emulator_url: "http://localhost:5000" 
+timeout: 30
+auth:
+  type: "basic"
+  username: "admin"
+  password: "admin"
+resources_filter:
+  - "ServiceRoot"
+  - "Systems"
+endpoints_filter:
+  - "/redfish/v1"
+  - "/redfish/v1/Systems"
+output_path: "./reports"
+retry_count: 3
+log_level: "info"
