@@ -1,0 +1,18 @@
+sourceVersion: "1.2.8"
+
+resources:
+  Volume:
+    version: "1.10.2"
+    methods: [GET, POST, PATCH, DELETE]
+    properties:
+      CapacityBytes:
+        type: integer
+        nullable: true
+        requiredOnCreate: true
+        unit: "By"
+        specRef: "9.5.40.3 Volume properties, Table 148"
+      Id:
+        type: string
+        required: true
+        readOnly: true
+        specRef: "Resource.json#/definitions/Id"
