@@ -22,7 +22,6 @@ func main() {
 
 	log.Printf("Загружен конфиг: emulator=%s, timeout=%d", cfg.EmulatorURL, cfg.Timeout)
 
-	// Загружаем заранее подготовленный spec из файла parsed_spec.json
 	data, err := os.ReadFile("parsed_spec.json")
 	if err != nil {
 		log.Fatalf("Не удалось прочитать parsed_spec.json: %v", err)
