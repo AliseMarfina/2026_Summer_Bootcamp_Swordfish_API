@@ -20,7 +20,6 @@ type Client struct {
 	username   string
 	password   string
 	token      string
-	sessionURL string
 	retryCount int
 	endpoints  []string
 }
@@ -41,6 +40,7 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	return client, nil
 }
 
+// authenticate выполняет сессионную аутентификацию и сохраняет токен.
 func (c *Client) authenticate() error {
 	body := map[string]string{
 		"UserName": c.username,
@@ -58,8 +58,10 @@ func (c *Client) authenticate() error {
 		return fmt.Errorf("auth failed: status %s", resp.Status)
 	}
 
+	// Пробуем взять токен из заголовка X-Auth-Token (эмулятор отдаёт его именно сюда)
 	token := resp.Header.Get("X-Auth-Token")
 	if token == "" {
+		// Если нет в заголовке, пробуем из тела (поле token)
 		var data struct {
 			Token string `json:"token"`
 		}
@@ -100,7 +102,8 @@ func (c *Client) Get(endpoint string) ([]byte, int, error) {
 		if c.token == "" {
 			return nil, 0, fmt.Errorf("no session token available")
 		}
-		req.Header.Set("X-Auth-Token", c.token)
+		// ИЗМЕНЕНИЕ: используем Authorization: Bearer вместо X-Auth-Token
+		req.Header.Set("Authorization", "Bearer "+c.token)
 	default:
 		return nil, 0, fmt.Errorf("unsupported auth type: %s", c.authType)
 	}
@@ -116,6 +119,7 @@ func (c *Client) Get(endpoint string) ([]byte, int, error) {
 		return nil, resp.StatusCode, err
 	}
 
+	// Переавторизация при 401 (если есть попытки)
 	if resp.StatusCode == http.StatusUnauthorized && c.authType == "session" && c.retryCount > 0 {
 		if err := c.authenticate(); err != nil {
 			return nil, resp.StatusCode, err
@@ -146,7 +150,8 @@ func (c *Client) Post(endpoint string, body []byte) ([]byte, int, error) {
 		if c.token == "" {
 			return nil, 0, fmt.Errorf("no session token available")
 		}
-		req.Header.Set("X-Auth-Token", c.token)
+		// ИЗМЕНЕНИЕ: используем Authorization: Bearer вместо X-Auth-Token
+		req.Header.Set("Authorization", "Bearer "+c.token)
 	default:
 		return nil, 0, fmt.Errorf("unsupported auth type: %s", c.authType)
 	}
@@ -179,9 +184,6 @@ func (c *Client) GetEndpoints(filter []string) ([]string, error) {
 		return nil, err
 	}
 
-	fmt.Println("DISCOVERED COUNT:", len(all))
-	fmt.Println("DISCOVERED LIST:", all)
-
 	return filterEndpoints(all, c, filter), nil
 }
 
@@ -197,18 +199,14 @@ func (c *Client) discoverEndpoints() ([]string, error) {
 		if visited[path] {
 			continue
 		}
-
-		fmt.Println("VISITING:", path)
 		visited[path] = true
 
 		body, status, err := c.Get(path)
 		if err != nil {
-			fmt.Println("ERROR:", path, err)
 			continue
 		}
 		endpoints = append(endpoints, path)
 		if status != http.StatusOK {
-			fmt.Println("NON-200:", path, status)
 			continue
 		}
 
@@ -225,18 +223,14 @@ func extractLinks(data interface{}, queue *[]string) {
 	switch v := data.(type) {
 	case map[string]interface{}:
 		for key, val := range v {
-
 			if key == "@odata.id" {
 				if id, ok := val.(string); ok {
-					fmt.Println("FOUND LINK:", id)
 					*queue = append(*queue, id)
 				}
 			}
-
 			if str, ok := val.(string); ok && strings.HasPrefix(str, "/redfish/") {
 				*queue = append(*queue, str)
 			}
-
 			extractLinks(val, queue)
 		}
 	case []interface{}:
@@ -250,24 +244,19 @@ func shouldInclude(path string, body []byte, filter []string) bool {
 	if len(filter) == 0 {
 		return true
 	}
-
 	var data map[string]interface{}
 	if err := json.Unmarshal(body, &data); err != nil {
 		return false
 	}
-
 	odataType, ok := data["@odata.type"].(string)
 	if !ok {
-		fmt.Println("NO TYPE:", path)
 		return true
 	}
-
 	for _, f := range filter {
 		if strings.Contains(strings.ToLower(odataType), strings.ToLower(f)) {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -275,19 +264,15 @@ func filterEndpoints(endpoints []string, client *Client, filter []string) []stri
 	if len(filter) == 0 {
 		return endpoints
 	}
-
 	var result []string
-
 	for _, ep := range endpoints {
 		body, status, err := client.Get(ep)
 		if err != nil || status != http.StatusOK {
 			continue
 		}
-
 		if shouldInclude(ep, body, filter) {
 			result = append(result, ep)
 		}
 	}
-
 	return result
 }
