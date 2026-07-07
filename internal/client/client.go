@@ -13,7 +13,6 @@ import (
 	"github.com/AliseMarfina/swordfish-verifier/internal/config"
 )
 
-// Client — структура для взаимодействия с эмулятором СХД.
 type Client struct {
 	baseURL    string
 	httpClient *http.Client
@@ -21,11 +20,11 @@ type Client struct {
 	username   string
 	password   string
 	token      string
+	sessionURL string
 	retryCount int
-	endpoints  []string // если указаны в конфиге, используем их, а не автообход
+	endpoints  []string
 }
 
-// NewClient создаёт клиента на основе конфигурации.
 func NewClient(cfg *config.Config) (*Client, error) {
 	if cfg.EmulatorURL == "" {
 		return nil, fmt.Errorf("emulator_url is required")
@@ -42,7 +41,6 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	return client, nil
 }
 
-// authenticate выполняет сессионную аутентификацию и сохраняет токен.
 func (c *Client) authenticate() error {
 	body := map[string]string{
 		"UserName": c.username,
@@ -60,10 +58,8 @@ func (c *Client) authenticate() error {
 		return fmt.Errorf("auth failed: status %s", resp.Status)
 	}
 
-	// Пробуем взять токен из заголовка X-Auth-Token
 	token := resp.Header.Get("X-Auth-Token")
 	if token == "" {
-		// Если нет в заголовке, пробуем из тела (поле token)
 		var data struct {
 			Token string `json:"token"`
 		}
@@ -79,7 +75,6 @@ func (c *Client) authenticate() error {
 	return nil
 }
 
-// ensureToken проверяет наличие токена и при необходимости выполняет аутентификацию.
 func (c *Client) ensureToken() error {
 	if c.authType == "session" && c.token == "" {
 		return c.authenticate()
@@ -87,8 +82,6 @@ func (c *Client) ensureToken() error {
 	return nil
 }
 
-// Get выполняет GET-запрос к указанному эндпоинту.
-// Возвращает тело ответа ([]byte) и HTTP-статус-код.
 func (c *Client) Get(endpoint string) ([]byte, int, error) {
 	if err := c.ensureToken(); err != nil {
 		return nil, 0, err
@@ -108,7 +101,6 @@ func (c *Client) Get(endpoint string) ([]byte, int, error) {
 			return nil, 0, fmt.Errorf("no session token available")
 		}
 		req.Header.Set("X-Auth-Token", c.token)
-		// req.Header.Set("Authorization", "Bearer "+c.token) // альтернатива
 	default:
 		return nil, 0, fmt.Errorf("unsupported auth type: %s", c.authType)
 	}
@@ -124,7 +116,6 @@ func (c *Client) Get(endpoint string) ([]byte, int, error) {
 		return nil, resp.StatusCode, err
 	}
 
-	// Переавторизация при 401 (если есть попытки)
 	if resp.StatusCode == http.StatusUnauthorized && c.authType == "session" && c.retryCount > 0 {
 		if err := c.authenticate(); err != nil {
 			return nil, resp.StatusCode, err
@@ -136,8 +127,6 @@ func (c *Client) Get(endpoint string) ([]byte, int, error) {
 	return body, resp.StatusCode, nil
 }
 
-// Post выполняет POST-запрос к указанному эндпоинту.
-// Возвращает тело ответа и статус-код.
 func (c *Client) Post(endpoint string, body []byte) ([]byte, int, error) {
 	if err := c.ensureToken(); err != nil {
 		return nil, 0, err
@@ -184,17 +173,19 @@ func (c *Client) Post(endpoint string, body []byte) ([]byte, int, error) {
 	return respBody, resp.StatusCode, nil
 }
 
-// GetEndpoints возвращает список эндпоинтов для проверки:
-// если задан endpoints_filter, используем его, иначе автообход.
 func (c *Client) GetEndpoints(filter []string) ([]string, error) {
-	if len(c.endpoints) > 0 {
-		return c.endpoints, nil
+	all, err := c.discoverEndpoints()
+	if err != nil {
+		return nil, err
 	}
-	return c.discoverEndpoints(filter)
+
+	fmt.Println("DISCOVERED COUNT:", len(all))
+	fmt.Println("DISCOVERED LIST:", all)
+
+	return filterEndpoints(all, c, filter), nil
 }
 
-// discoverEndpoints (автообход) — внутренний метод.
-func (c *Client) discoverEndpoints(filter []string) ([]string, error) {
+func (c *Client) discoverEndpoints() ([]string, error) {
 	var endpoints []string
 	visited := make(map[string]bool)
 	queue := []string{"/redfish/v1"}
@@ -206,15 +197,19 @@ func (c *Client) discoverEndpoints(filter []string) ([]string, error) {
 		if visited[path] {
 			continue
 		}
+
+		fmt.Println("VISITING:", path)
 		visited[path] = true
 
 		body, status, err := c.Get(path)
-		if err != nil || status != http.StatusOK {
+		if err != nil {
+			fmt.Println("ERROR:", path, err)
 			continue
 		}
-
-		if shouldInclude(path, body, filter) {
-			endpoints = append(endpoints, path)
+		endpoints = append(endpoints, path)
+		if status != http.StatusOK {
+			fmt.Println("NON-200:", path, status)
+			continue
 		}
 
 		var data map[string]interface{}
@@ -223,20 +218,26 @@ func (c *Client) discoverEndpoints(filter []string) ([]string, error) {
 		}
 		extractLinks(data, &queue)
 	}
-
 	return endpoints, nil
 }
 
-// extractLinks рекурсивно обходит JSON и собирает все значения @odata.id в очередь.
 func extractLinks(data interface{}, queue *[]string) {
 	switch v := data.(type) {
 	case map[string]interface{}:
-		for _, val := range v {
-			if id, ok := val.(string); ok && strings.HasPrefix(id, "/redfish/") {
-				*queue = append(*queue, id)
-			} else {
-				extractLinks(val, queue)
+		for key, val := range v {
+
+			if key == "@odata.id" {
+				if id, ok := val.(string); ok {
+					fmt.Println("FOUND LINK:", id)
+					*queue = append(*queue, id)
+				}
 			}
+
+			if str, ok := val.(string); ok && strings.HasPrefix(str, "/redfish/") {
+				*queue = append(*queue, str)
+			}
+
+			extractLinks(val, queue)
 		}
 	case []interface{}:
 		for _, item := range v {
@@ -245,26 +246,48 @@ func extractLinks(data interface{}, queue *[]string) {
 	}
 }
 
-// shouldInclude проверяет, нужно ли включать данный эндпоинт в результат,
-// исходя из фильтра по типу ресурса (поле @odata.type).
 func shouldInclude(path string, body []byte, filter []string) bool {
 	if len(filter) == 0 {
-		return true // фильтра нет — включаем всё
+		return true
 	}
+
 	var data map[string]interface{}
 	if err := json.Unmarshal(body, &data); err != nil {
 		return false
 	}
+
 	odataType, ok := data["@odata.type"].(string)
 	if !ok {
-		return false
+		fmt.Println("NO TYPE:", path)
+		return true
 	}
-	// Ожидаемый формат: "#Namespace.Version.TypeName"
-	// Ищем, содержит ли строка одно из имён из фильтра.
+
 	for _, f := range filter {
-		if strings.Contains(odataType, f) {
+		if strings.Contains(strings.ToLower(odataType), strings.ToLower(f)) {
 			return true
 		}
 	}
+
 	return false
+}
+
+func filterEndpoints(endpoints []string, client *Client, filter []string) []string {
+	if len(filter) == 0 {
+		return endpoints
+	}
+
+	var result []string
+
+	for _, ep := range endpoints {
+		body, status, err := client.Get(ep)
+		if err != nil || status != http.StatusOK {
+			continue
+		}
+
+		if shouldInclude(ep, body, filter) {
+			result = append(result, ep)
+		}
+	}
+
+	return result
 }

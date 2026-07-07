@@ -3,15 +3,9 @@ specification_path: "./internal/parser/testdata/jsonschema"
 emulator_url: "http://localhost:8080" 
 timeout: 30
 auth:
-  type: "basic"
+  type: "session"
   username: "admin"
   password: "admin"
-resources_filter:
-  - "ServiceRoot"
-  - "Systems"
-endpoints_filter:
-  - "/redfish/v1"
-  - "/redfish/v1/Systems"
 output_path: "./reports"
 retry_count: 3
 log_level: "info"

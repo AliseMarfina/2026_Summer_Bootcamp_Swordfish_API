@@ -59,12 +59,10 @@ func main() {
 	log.Println("Инициализация клиента...")
 	c, err := client.NewClient(cfg)
 	if err != nil {
-		log.Fatalf("Ошибка создания клиента: %v", err)
+		log.Fatalln("failed to create client", "error", err)
 	}
-
-	// 4. Получаем список эндпоинтов для проверки (автообход или ручной список)
 	log.Println("Сбор эндпоинтов эмулятора...")
-	endpoints, err := c.GetEndpoints(cfg.EndpointsFilter)
+	endpoints, err := c.GetEndpoints(nil)
 	if err != nil {
 		log.Fatalf("Ошибка при обходе эндпоинтов: %v", err)
 	}
