@@ -3,9 +3,9 @@ package formats_test
 import (
 	"testing"
 
-	"github.com/AliseMarfina/swordfish-verifier/parser/model"
-	"github.com/AliseMarfina/swordfish-verifier/parser/v2universal"
-	_ "github.com/AliseMarfina/swordfish-verifier/parser/v2universal/formats" // registers json/xml/yaml/pdf parsers
+	"github.com/AliseMarfina/swordfish-verifier/internal/model"
+	"github.com/AliseMarfina/swordfish-verifier/internal/parser/v2universal"
+	_ "github.com/AliseMarfina/swordfish-verifier/internal/parser/v2universal/formats" // registers json/xml/yaml/pdf parsers
 )
 
 func TestUniversalParse_JSONOnly_MatchesV1(t *testing.T) {

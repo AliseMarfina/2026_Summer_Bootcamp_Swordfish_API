@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/AliseMarfina/swordfish-verifier/internal/comparator"
-	"github.com/AliseMarfina/swordfish-verifier/parser/model"
+	"github.com/AliseMarfina/swordfish-verifier/internal/model"
 )
 
 func TestCompare_Pass(t *testing.T) {

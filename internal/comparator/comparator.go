@@ -3,9 +3,10 @@ package comparator
 import (
 	"encoding/json"
 	"fmt"
+
 	// "reflect"
 	// "strings"
-	"github.com/AliseMarfina/swordfish-verifier/parser/model"
+	"github.com/AliseMarfina/swordfish-verifier/internal/model"
 )
 
 type CheckResult struct {

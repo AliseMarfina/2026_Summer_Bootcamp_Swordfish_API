@@ -8,7 +8,7 @@ import (
 
 	"github.com/AliseMarfina/swordfish-verifier/internal/comparator"
 	"github.com/AliseMarfina/swordfish-verifier/internal/config"
-	"github.com/AliseMarfina/swordfish-verifier/parser/model"
+	"github.com/AliseMarfina/swordfish-verifier/internal/model"
 )
 
 func main() {

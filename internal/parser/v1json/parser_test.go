@@ -3,7 +3,7 @@ package v1json
 import (
 	"testing"
 
-	"github.com/AliseMarfina/swordfish-verifier/parser/model"
+	"github.com/AliseMarfina/swordfish-verifier/internal/model"
 )
 
 func TestParse_Volume(t *testing.T) {

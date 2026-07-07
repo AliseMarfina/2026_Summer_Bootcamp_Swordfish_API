@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/AliseMarfina/swordfish-verifier/parser/model"
+	"github.com/AliseMarfina/swordfish-verifier/internal/model"
 )
 
 type Config struct {

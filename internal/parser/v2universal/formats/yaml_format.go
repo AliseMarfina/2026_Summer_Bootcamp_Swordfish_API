@@ -7,8 +7,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/AliseMarfina/swordfish-verifier/parser/model"
-	"github.com/AliseMarfina/swordfish-verifier/parser/v2universal"
+	"github.com/AliseMarfina/swordfish-verifier/internal/model"
+	"github.com/AliseMarfina/swordfish-verifier/internal/parser/v2universal"
 )
 
 type YAMLFormat struct{}

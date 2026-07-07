@@ -1,6 +1,6 @@
 version: "1.2.9"
-specification_path: "./specifications/swordfish.json"
-emulator_url: "http://localhost:5000" 
+specification_path: "./parsed_spec.json"
+emulator_url: "http://localhost:8080" 
 timeout: 30
 auth:
   type: "basic"

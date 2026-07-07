@@ -1,0 +1,25 @@
+{
+  "spec_version": "",
+  "checked_at": "2026-07-07T12:35:31Z",
+  "emulator_url": "http://localhost:8080",
+  "overall_status": "PASS",
+  "total_checks": 1,
+  "passed": 1,
+  "failed": 0,
+  "resources": [
+    {
+      "name": "ServiceRoot",
+      "status": "PASS",
+      "total_checks": 1,
+      "passed": 1,
+      "failed": 0,
+      "checks": [
+        {
+          "field": "",
+          "status": "NOT_SUPPORTED",
+          "message": ""
+        }
+      ]
+    }
+  ]
+}
