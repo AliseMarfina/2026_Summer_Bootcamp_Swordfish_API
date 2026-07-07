@@ -44,13 +44,16 @@ func main() {
 	}
 
 	spec, err := v2universal.Parse(v2universal.Config{
-		Sources:        sources,
-		ResourceFilter: cfg.ResourcesFilter,
+		Sources: sources,
 	})
 	if err != nil {
 		log.Fatalf("Ошибка парсинга спецификации: %v", err)
 	}
 	log.Printf("Спецификация загружена. Всего ресурсов: %d", len(spec.Resources))
+
+	for name := range spec.Resources {
+		log.Println("RESOURCE:", name)
+	}
 
 	// 3. Создаём HTTP-клиент для связи с эмулятором
 	log.Println("Инициализация клиента...")
@@ -61,7 +64,7 @@ func main() {
 
 	// 4. Получаем список эндпоинтов для проверки (автообход или ручной список)
 	log.Println("Сбор эндпоинтов эмулятора...")
-	endpoints, err := c.GetEndpoints(cfg.ResourcesFilter)
+	endpoints, err := c.GetEndpoints(cfg.EndpointsFilter)
 	if err != nil {
 		log.Fatalf("Ошибка при обходе эндпоинтов: %v", err)
 	}
