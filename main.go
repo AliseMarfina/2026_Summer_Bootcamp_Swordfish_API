@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/AliseMarfina/swordfish-verifier/internal/client"
 	"github.com/AliseMarfina/swordfish-verifier/internal/comparator"
 	"github.com/AliseMarfina/swordfish-verifier/internal/config"
 	"github.com/AliseMarfina/swordfish-verifier/internal/reporter"
@@ -18,15 +19,24 @@ func main() {
 
 	cfg, err := config.LoadConfig(*configPath)
 	if err != nil {
+<<<<<<< Updated upstream
 		log.Fatalf("Ошибка загрузки конфигурации: %v", err)
 	}
 	log.Printf("Конфигурация загружена: эмулятор=%s, таймаут=%d", cfg.EmulatorURL, cfg.Timeout)
+=======
+		log.Fatalf("Failed to load config: %v", err)
+	}
 
-	data, err := os.ReadFile("parsed_spec.json")
+	log.Printf("Config loaded: emulator=%s, timeout=%d", cfg.EmulatorURL, cfg.Timeout)
+>>>>>>> Stashed changes
+
+	// Load specification
+	specData, err := os.ReadFile("parsed_spec.json")
 	if err != nil {
-		log.Fatalf("Не удалось прочитать parsed_spec.json: %v", err)
+		log.Fatalf("Failed to read parsed_spec.json: %v", err)
 	}
 	var spec model.Spec
+<<<<<<< Updated upstream
 	if err := json.Unmarshal(data, &spec); err != nil {
 		log.Fatalf("Ошибка разбора parsed_spec.json: %v", err)
 	}
@@ -77,4 +87,98 @@ func main() {
 		log.Fatalf("Ошибка записи отчёта: %v", err)
 	}
 	log.Printf("Отчёт сохранён в %s", outputPath)
+=======
+	if err := json.Unmarshal(specData, &spec); err != nil {
+		log.Fatalf("Failed to parse parsed_spec.json: %v", err)
+	}
+
+	// Create HTTP client
+	httpClient := client.NewClient(cfg)
+
+	// Ping server to check connectivity
+	if err := httpClient.Ping(); err != nil {
+		log.Fatalf("Failed to connect to server at %s: %v", cfg.EmulatorURL, err)
+	}
+	log.Printf("Successfully connected to server at %s", cfg.EmulatorURL)
+
+	// Test all resources from the spec
+	checksPerResource := make(map[string][]comparator.CheckResult)
+	resources := getResourcesToTest(cfg, spec)
+
+	for _, resourceName := range resources {
+		resource, ok := spec.Resources[resourceName]
+		if !ok {
+			log.Printf("Resource %s not found in specification", resourceName)
+			continue
+		}
+
+		results := testResourceEndpoints(httpClient, resourceName, resource, &spec)
+		checksPerResource[resourceName] = results
+	}
+
+	// Build report
+	report := reporter.BuildReport(spec.SourceVersion, cfg.EmulatorURL, checksPerResource)
+
+	// Write report to file
+	if err := reporter.WriteReport(cfg.OutputPath, report); err != nil {
+		log.Fatalf("Failed to write report: %v", err)
+	}
+
+	log.Printf("Report saved to %s", cfg.OutputPath)
+	log.Printf("Overall status: %s (Passed: %d, Failed: %d)", report.OverallStatus, report.Passed, report.Failed)
+}
+
+// getResourcesToTest returns the list of resources to test based on config
+func getResourcesToTest(cfg *config.Config, spec model.Spec) []string {
+	if len(cfg.ResourcesFilter) > 0 {
+		return cfg.ResourcesFilter
+	}
+
+	// If no filter specified, test all resources
+	var resources []string
+	for name := range spec.Resources {
+		resources = append(resources, name)
+	}
+	return resources
+}
+
+// testResourceEndpoints tests all endpoints for a given resource
+func testResourceEndpoints(httpClient *client.Client, resourceName string, resource *model.Resource, spec *model.Spec) []comparator.CheckResult {
+	var allResults []comparator.CheckResult
+
+	if len(resource.Endpoints) == 0 {
+		log.Printf("No endpoints defined for resource %s in specification", resourceName)
+		return allResults
+	}
+
+	// Test the first endpoint for initial validation
+	endpoint := resource.Endpoints[0]
+	log.Printf("Testing resource %s on endpoint %s", resourceName, endpoint)
+
+	body, err := httpClient.GetResource(endpoint)
+	if err != nil {
+		log.Printf("Error fetching resource %s: %v", resourceName, err)
+		allResults = append(allResults, comparator.CheckResult{
+			Resource: resourceName,
+			Status:   "FAIL",
+			Message:  "Failed to fetch resource: " + err.Error(),
+		})
+		return allResults
+	}
+
+	// Compare response with specification
+	results, err := comparator.Compare(resourceName, spec, body)
+	if err != nil {
+		log.Printf("Error comparing resource %s: %v", resourceName, err)
+		allResults = append(allResults, comparator.CheckResult{
+			Resource: resourceName,
+			Status:   "FAIL",
+			Message:  "Failed to compare with specification: " + err.Error(),
+		})
+		return allResults
+	}
+
+	allResults = append(allResults, results...)
+	return allResults
+>>>>>>> Stashed changes
 }
